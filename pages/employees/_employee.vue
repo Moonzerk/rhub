@@ -26,10 +26,8 @@ const route = useRoute()
 const isDrawerOpen = ref(false)
 const employee = ref<Employee | null>()
 
-// route.params.id
 watch(() => route?.params?.id, () => {
   const employeeId = route?.params?.id
-  console.time('doSomething')
 
   if (employeeId) {
     const { data : employees } = useNuxtData<Employee[]>('employees')
@@ -40,7 +38,6 @@ watch(() => route?.params?.id, () => {
     }
   }
 
-  console.timeEnd('doSomething')
 }, { immediate: true })
 
 watch(isDrawerOpen, (v, oldV) => {

@@ -10,7 +10,18 @@
       </div>
     </header>
     <main>
+      <div
+        v-if="debouncedPending"
+        class="h-96 text-2xl grid place-items-center text-primary"
+      >
+        <Icon
+          name="tabler:loader-2"
+          size="32"
+          class="animate-spin"
+        />
+      </div>
       <RHDataTable
+        v-else
         :headers="headers"
         :items="employees"
         :options="options"
@@ -34,13 +45,35 @@ import EmployeePage from './_employee.vue';
 defineOptions({ name: 'EmployeesPage' })
 useHead({ title: 'Employees | RHub' })
 
-const response1 = await useFetch('/api/employees', { key: 'employees' })
-const employees = response1.data as unknown as Ref<Employee[]>
+const employees = ref<Employee[]>([])
+const jobs = ref<Record<number, Job>>({})
 
-const response2 = await useFetch('/api/jobs');
-const jobs = (response2.data as Ref<Job[]>).value?.reduce(
-  (mapping, job) => ({ ...mapping, [job.id]: job.name }), {}
-) as { [k: string]: string }[]
+const pending = ref(false)
+const debouncedPending = refDebounced(pending, 250)
+loadData()
+
+async function loadEmployees() {
+  const response = await useFetch('/api/employees', { key: 'employees', server: false })
+  employees.value = response.data as unknown as Employee[]
+}
+
+async function loadJobs() {
+  const response = await useFetch('/api/jobs', { key: 'jobs', server: false })
+  console.log(response.data.value);
+  // if (Array.isArray(response.data)) {
+
+  // }
+  // jobs.value = response.data.value.reduce(
+  //   (professions, job) => ({ ...professions, [job.id]: job }),
+  //   {}
+  // )
+}
+
+async function loadData() {
+  pending.value = true
+  await Promise.all([loadEmployees(), loadJobs()])
+  pending.value = false
+}
 
 const formatName = (e: Employee) => e.firstname + ' ' + e.lastname
 
