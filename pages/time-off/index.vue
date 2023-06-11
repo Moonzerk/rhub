@@ -5,7 +5,5 @@
 </template>
 
 <script setup lang="ts">
-useHead({
-  title: 'Time-off | RHub'
-})
+useHead({ title: 'Time-off | RHub' })
 </script>

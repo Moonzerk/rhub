@@ -21,7 +21,7 @@
         />
       </div>
       <RHDataTable
-        v-else
+        v-else-if="!!employees"
         :headers="headers"
         :items="employees"
         :options="options"
@@ -35,78 +35,59 @@
 </template>
 
 <script setup lang="ts">
-import { Employee, Job } from '@prisma/client';
+import { Employee } from '@prisma/client';
+import { refDebounced } from '@vueuse/core';
 import { DateTime } from 'luxon';
 import RHButton from '~/components/button/default.vue';
 import RHDataTable, { DataTableHeader, DataTableOption } from '~/components/data-table/index.vue';
 import { confirm } from "~/composables/confirm-dialog";
+import { useCustomFetch } from '~/composables/fetch';
+import { EmployeeWithJob } from '~/type';
 import EmployeePage from './_employee.vue';
 
 defineOptions({ name: 'EmployeesPage' })
 useHead({ title: 'Employees | RHub' })
 
-const employees = ref<Employee[]>([])
-const jobs = ref<Record<number, Job>>({})
+const { data: employees, pending } = useCustomFetch<EmployeeWithJob[]>('employees')
+const debouncedPending = refDebounced(pending, 100)
 
-const pending = ref(false)
-const debouncedPending = refDebounced(pending, 250)
-loadData()
+const formatName = (e: EmployeeWithJob) => e.firstname + ' ' + e.lastname
 
-async function loadEmployees() {
-  const response = await useFetch('/api/employees', { key: 'employees', server: false })
-  employees.value = response.data as unknown as Employee[]
-}
-
-async function loadJobs() {
-  const response = await useFetch('/api/jobs', { key: 'jobs', server: false })
-  console.log(response.data.value);
-  // if (Array.isArray(response.data)) {
-
-  // }
-  // jobs.value = response.data.value.reduce(
-  //   (professions, job) => ({ ...professions, [job.id]: job }),
-  //   {}
-  // )
-}
-
-async function loadData() {
-  pending.value = true
-  await Promise.all([loadEmployees(), loadJobs()])
-  pending.value = false
-}
-
-const formatName = (e: Employee) => e.firstname + ' ' + e.lastname
-
-const headers: DataTableHeader<Employee>[] = [
+const headers: DataTableHeader<EmployeeWithJob>[] = [
   {
     text: 'Name',
     value: formatName,
     sortable: true,
-    sort: (a: Employee, b: Employee) => formatName(a).localeCompare(formatName(b))
+    sort: (a, b) => formatName(a).localeCompare(formatName(b))
   },
   {
     text: 'Email',
     value: 'email',
     sortable: true,
-    sort: (a: Employee, b: Employee) => a.email.localeCompare(b.email)
+    sort: (a, b) => a.email.localeCompare(b.email)
   },
   {
     text: 'Job',
-    value: (e: Employee) => jobs[e.job] ?? '',
+    value: (e) => e.job?.name ?? '',
     sortable: true,
-    sort: (a: Employee, b: Employee) => (jobs[a.job] ?? '').localeCompare(jobs[b.job] ?? '')
+    sort: (a, b) => (a.job.name ?? '').localeCompare(b.job.name ?? '')
   },
   {
     text: 'Birth date',
-    value: (e: Employee) => DateTime.fromISO(e.birth_date).toISODate(),
+    value: e => DateTime.fromJSDate(e?.birth_date ?? new Date(1970, 0, 0)).toISODate(),
     sortable: true,
-    sort: (a: Employee, b: Employee) => DateTime.fromISO(a.birth_date).valueOf() - DateTime.fromISO(b.birth_date).valueOf()
+    sort: (a, b) => {
+      const dtA = DateTime.fromJSDate(a?.birth_date ?? new Date(1970, 0, 0)).valueOf()
+      const dtB = DateTime.fromJSDate(b.birth_date ?? new Date(1970, 0, 0)).valueOf()
+
+      return dtA - dtB
+    },
   },
   {
     text: 'Arrival date',
-    value: (e: Employee) => DateTime.fromISO(e.arrival_date).toISODate(),
+    value: (e) => DateTime.fromJSDate(e.arrival_date).toISODate(),
     sortable: true,
-    sort: (a: Employee, b: Employee) => DateTime.fromISO(a.arrival_date).valueOf() - DateTime.fromISO(b.arrival_date).valueOf()
+    sort: (a, b) => DateTime.fromJSDate(a.arrival_date).valueOf() - DateTime.fromJSDate(b.arrival_date).valueOf()
   }
 ]
 
